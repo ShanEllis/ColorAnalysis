@@ -1,0 +1,194 @@
+---
+title: "ColorAnalysis"
+author: "Shannon E. Ellis"
+date: "11/23/2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+Here we will try to:
+
+1. determine what color palletes people like best  
+2. determine which they find most suitable for which graphs  
+3. settle the color debate between Jeff and myself  
+
+```{r read in data}
+## these data have had duplicates removed
+## and emails have been removed
+df <- read.csv("Colors.csv", na.strings=c("","NA"))
+```
+
+```{r quick-look-at-the-data}
+## sex breakdown 
+table(droplevels(df$sex))
+```
+
+## Palette Preference
+Now we'll look at overall preferences by graph type (not broken down by sex).
+
+```{r plotting-preferences2, echo=FALSE}
+##plot differentiation of blues
+toplot= droplevels(df[,c("GraphingFavorite","GraphingBoxplot","GraphingNetwork")])
+  
+counts2=c()
+for(i in 1:ncol(toplot)){
+  counts = table(toplot[,i])/nrow(toplot) 
+  counts2 = cbind(counts2,counts)
+}
+colnames(counts2) <- colnames(toplot)
+
+bright= c(yellow=rgb(255,222,13, maxColorValue=255), 
+                    orange=rgb(232,121,12, maxColorValue=255),   
+                    red=rgb(255,0,0, maxColorValue=255), 
+                    green=rgb(12,189,24, maxColorValue=255), 
+                    purple=rgb(148,12,232, maxColorValue=255), 
+                    blue=rgb(58,158,234, maxColorValue=255), 
+                    pink=rgb(255,78,105, maxColorValue=255), 
+                    teal=rgb(59,196,199, maxColorValue=255))
+  barplot(t(counts2), beside=T, 
+          col=c(bright["green"],bright["purple"],bright["orange"]),ylab="Proportion of Responses",ylim=c(0,0.4), main="Color Preferences by Graph", las=2) 
+  legend("topleft", c(colnames(counts2)), pch=15, 
+         col=c(bright["green"],bright["purple"],bright["orange"]), 
+         bty="n")
+```
+
+And, what about an individual's preference from one plot type to another, does that change? Or is their color choice consisitent
+
+```{r preferences-across-graphs}
+## do people make the same choice for graphing a network as they do graphing a boxplot?
+table(df[,"GraphingFavorite"]==df[,"GraphingBoxplot"])
+table(df[,"GraphingFavorite"]==df[,"GraphingNetwork"])
+table(df[,"GraphingBoxplot"]==df[,"GraphingNetwork"])
+```
+
+```{r preferences-aesthetics}
+## are people's aesthetic choices the same as their graphing choices?
+table(df[,"GraphingFavorite"]==df[,"AestheticFavorite"])
+table(df[,"GraphingBoxplot"]==df[,"AestheticBoxplot"])
+table(df[,"GraphingNetwork"]==df[,"AestheticNetwork"])
+```
+
+## Color Differentiation
+
+The impetus for this analysis as I recall it:  
+Shannon: Well, and this is not a sexist comment, males don't differentiate colors as well as females.  
+Jeff: What? Yes that is sexist!  
+Shannon: No, it's not. It's a thing.  
+Jeff: Are you sure?  
+Shannon: I think so...  
+Jeff: Let's test it.  
+
+From the quiz, the dots that were referenced in this question (although the sizes and positions of dots were presented differently):
+
+```{r blues, echo=FALSE,fig.width = 9, fig.height = 2}
+  blues = c(extralightblue=rgb(237,240,245, maxColorValue=255), 
+                    lightblue =rgb(173,185,211, maxColorValue=255),   
+                    blue=rgb(99,123,173, maxColorValue=255),   
+                    # darkblue=rgb(58,87,149, maxColorValue=255), 
+                    darkerblue=rgb(29,52,105, maxColorValue=255),
+                    darkestblue=rgb(11,18,36, maxColorValue=255))
+
+par(mfrow=c(1,3), mar=c(1,1,2,1))
+flavors=blues
+values = c(5,7,9)
+
+for(value in 1:length(values)){
+        plot(c(-10, 10), c(-10, 10), xaxt='n', yaxt='n', type='n', xlab='', ylab='', main="")
+        xvals = seq(-8, 8, length=values[value]) 
+        yvals = runif(values[value], min=-7, max=7)
+        points(xvals, yvals, cex=7, pch=21, col='gray70', bg=flavors)
+}
+
+```
+
+Note: for the graphs below, the actual number of distinct colors are 5, 7, and 7, respectively.
+
+```{r color-differentiation, echo=FALSE,fig.width = 9}
+##plot differentiation of blues
+## only include males and females due to sample sizes
+## would love to include nonbinary at some point
+## just don't have the numbers at this point
+sexes = c("Female","Male")
+df= df[df$sex %in% sexes,]
+df$sex <- droplevels(df$sex)
+
+par(mfrow=c(1,3))
+for(i in c("Blues1","Blues2","Blues3")){
+  toplot= df[,i]
+  counts <- as.matrix(table(toplot,by=df$sex))
+  nF<-length(df$sex[df$sex=="Female"])
+  nM<-length(df$sex[df$sex=="Male"])
+                        
+  counts = cbind(counts[,"Female"]/nF,counts[,"Male"]/nM)
+
+  barplot(t(counts), beside=T, 
+          col=c(bright["purple"],bright["green"]),ylab="Proportion of Responses",ylim=c(0,1),xlab=paste0("N=",length(df$sex))) 
+  legend("topleft", c(paste0("female (N=",nF,")"),paste0("male (N=",nM,")")), pch=15, 
+         col=c(bright["purple"],bright["green"]), 
+         bty="n")
+}
+```
+
+## Sex Preferences
+Quiz Question: Select any palette in which all the colors included in that palette do not appear distinct to your eyes at first glance. 
+
+```{r breakdown-by-sex}
+## breakdown the data by sex
+df_M <- df %>% filter(sex=="Male")
+df_F <- df %>% filter(sex=="Female")
+
+## females 
+length(grep("distinct", df_F$NondistinctPalette))/nrow(df_F)
+## males
+length(grep("distinct", df_M$NondistinctPalette))/nrow(df_M)
+
+## how about some significance
+sexdata <-
+matrix(c(length(grep("distinct", df_M$NondistinctPalette)), length(grep("distinct", df_F$NondistinctPalette)), nrow(df_M)-length(grep("distinct", df_M$NondistinctPalette)), nrow(df_F)-length(grep("distinct", df_F$NondistinctPalette))),
+       nrow = 2,
+       dimnames =
+       list(c("Males", "Females"),
+            c("Distinct", "Not Distinct")))
+
+fisher.test(sexdata,alternative="less")
+```
+The percentage who found all of the palletes reasonably distinct: 
+ 
+Females: `r round(length(grep("distinct", df_F$NondistinctPalette))/nrow(df_F)*100,2)`%.
+
+Males: `r round(length(grep("distinct", df_M$NondistinctPalette))/nrow(df_M)*100,2)`%
+
+## Plotting Preferences
+
+For the three following plots, we asked three questions. Proportion of respones for each are plotted:
+
+1. Check the (1) palette you think would be best for graphing.
+
+2. Check the (1) palette you find most appropriate for graphing the boxplots below.
+
+3. Check the (1) palette you find most appropriate for graphing the networks below.
+```{r plotting-preferences, echo=FALSE}
+##plot differentiation of blues
+for(i in c("GraphingFavorite","GraphingBoxplot","GraphingNetwork")){
+  toplot= droplevels(df[,i])
+  counts <- as.matrix(table(toplot,by=df$sex))
+  nF<-length(df$sex[df$sex=="Female"])
+  nM<-length(df$sex[df$sex=="Male"])
+  N <- nrow(df) 
+  
+  counts2 = cbind(table(toplot)/length(toplot), counts[,"Female"]/nF,counts[,"Male"]/nM)
+  
+  barplot(t(counts2), beside=T, 
+          col=c("black",bright["purple"],bright["green"]),ylab="Proportion of Responses",ylim=c(0,0.4), main=colnames(df)[i], las=2) 
+  legend("topleft", c(paste0("combined (N=",N,")"),paste0("female (N=",nF,")"),paste0("male (N=",nM,")")), pch=15, 
+         col=c("black",bright["purple"],bright["green"]), 
+         bty="n")
+}
+```
+
+
+ 
